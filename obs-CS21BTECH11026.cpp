@@ -127,7 +127,7 @@ void* writer(void* arg) {
 int* obstructionFreeSnapshot(int M) {
     int* snapshot = new int[M];
     for (int i = 0; i < M; ++i) {
-        // Attempt to read the value from the register
+        // Reading the value from the register
         snapshot[i] = registers[i].load(memory_order_acquire);
     }
     return snapshot;
@@ -219,6 +219,13 @@ int main() {
         pthread_create(&writerThreads[i], nullptr, writer, writerArgs[i]);
     }
 
+    // Recording end time for write time
+    auto endWriterTime = chrono::high_resolution_clock::now();
+    chrono::duration<double, milli> writerTime = endWriterTime - startTime;
+
+    // Start snapshot threads and timer
+    auto startSnapshotTime = chrono::high_resolution_clock::now();
+
     // Creating the snapshot threads data with the initial values
     for (int i = 0; i < ns; ++i) {
         snapshotArgs[i] = new ThreadData(i, 0, mu_s, k, M);
@@ -230,6 +237,10 @@ int main() {
         pthread_join(snapshotThreads[i], nullptr);
     }
 
+    // Recording end time for snapshot threads
+    auto endSnapshotTime = chrono::high_resolution_clock::now();
+    chrono::duration<double, milli> snapshotTime = endSnapshotTime - startSnapshotTime;
+
     // Inform all the writer threads that they have to terminate
     term.store(true);
 
@@ -240,10 +251,12 @@ int main() {
 
     // End time
     auto endTime = chrono::high_resolution_clock::now();
-    chrono::duration<double> duration = endTime - startTime;
+    chrono::duration<double, milli> duration = endTime - startTime;
 
-    // Time taken
-    cout << duration.count() << endl;
+    // Time recorded
+    cout << "Writer thread time taken: " << writerTime.count() << endl;
+    cout << "Snapshot threads time taken: " << snapshotTime.count() << endl;
+    cout << "Total time taken: " << duration.count() << endl;
 
     // Sort the buffer by timestamp
     sort(outputBuffer, outputBuffer + bufferIndex,
